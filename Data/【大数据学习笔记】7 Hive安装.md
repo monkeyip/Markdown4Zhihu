@@ -78,3 +78,94 @@ mysql>flush privileges;
 mysql>quit;
 ```
 
+
+
+## 安装Hive和配置
+
+**1、Hive安装及配置**
+
+（1） 把 apache-hive-1.2.1-bin.tar.gz 上传到 linux 的/opt/software 目录下
+（2） 解压 apache-hive-1.2.1-bin.tar.gz 到/opt/module/目录下面
+
+`tar -zxvf apache-hive-1.2.1-bin.tar.gz -C /opt/module/`
+
+（3） 修改 apache-hive-1.2.1-bin.tar.gz 的名称为 hive
+`mv apache-hive-1.2.1-bin/ hive`
+（4） 修改/opt/module/hive/conf 目录下的 hive-env.sh.template 名称为 hive-env.sh
+`mv hive-env.sh.template hive-env.sh`
+（5） 配置 hive-env.sh 文件
+	（a） 配置 HADOOP_HOME 路径
+		`export HADOOP_HOME=/opt/module/hadoop-2.7.2`
+	（b） 配置 HIVE_CONF_DIR 路径
+		`export HIVE_CONF_DIR=/opt/module/hive/conf`
+
+
+
+**2、Hadoop 集群配置**
+（1） 必须启动 hdfs 和 yarn
+`[monkey@hadoop102 hadoop-2.7.2]$ sbin/start-dfs.sh`
+`[monkey@hadoop103 hadoop-2.7.2]$ sbin/start-yarn.sh`
+（2） 在 HDFS 上创建/tmp 和/user/hive/warehouse 两个目录并修改他们的同组权限可写
+`[monkey@hadoop102 hadoop-2.7.2]$ bin/hadoop fs -mkdir /tmp`
+`[monkey@hadoop102 hadoop-2.7.2]$ bin/hadoop fs -mkdir -p /user/hive/warehouse`
+`[monkey@hadoop102 hadoop-2.7.2]$ bin/hadoop fs -chmod g+w /tmp`
+`[monkey@hadoop102 hadoop-2.7.2]$ bin/hadoop fs -chmod g+w /user/hive/warehouse  `
+
+
+
+## Hive 元数据配置到 MySQL
+
+**1、驱动拷贝**
+
+1）在/opt/software/mysql-libs 目录下解压 mysql-connector-java-5.1.27.tar.gz 驱动包
+
+`[root@hadoop102 mysql-libs]# tar -zxvf mysql-connector-java-5.1.27.tar.gz`
+2）拷 贝 /opt/software/mysql-libs/mysql-connector-java-5.1.27 目录下的mysql-connector-java-5.1.27-bin.jar到/opt/module/hive/lib/
+`[root@hadoop102 mysql-connector-java-5.1.27]# cp mysql-connector-java-5.1.27-bin.jar
+/opt/module/hive/lib/  `
+
+
+
+**2、配置 Metastore 到 MySQL**
+
+在/opt/module/hive/conf 目录下创建一个 hive-site.xml
+`[monkey@hadoop102 conf]$ touch hive-site.xml`
+`[monkey@hadoop102 conf]$ vi hive-site.xml`
+
+> <?xml version="1.0"?><?xml-stylesheet type="text/xsl" href="configuration.xsl"?><configuration><property><name>javax.jdo.option.ConnectionURL</name><value>jdbc:mysql://hadoop102:3306/metastore?createDatabaseIfNotExist=true</value><description>JDBC connect string for a JDBC metastore</description></property><property><name>javax.jdo.option.ConnectionDriverName</name><value>com.mysql.jdbc.Driver</value><description>Driver class name for a JDBC metastore</description></property><property><name>javax.jdo.option.ConnectionUserName</name><value>root</value><description>username to use against metastore database</description></property><property><name>javax.jdo.option.ConnectionPassword</name><value>root</value><description>password to use against metastore database</description></property></configuration> 
+
+
+
+## Hive基本操作
+
+```shell
+（1） 启动 hive
+[monkey@hadoop102 hive]$ bin/hive
+（2） 查看数据库
+hive> show databases;
+（3） 打开默认数据库
+hive> use default;
+（4） 显示 default 数据库中的表
+hive> show tables;
+（5） 创建一张表
+hive> create table student(id int, name string);
+（6） 显示数据库中有几张表
+hive> show tables;
+（7） 查看表的结构
+hive> desc student;
+（8） 向表中插入数据
+hive> insert into student values(1000,"ss");
+（9） 查询表中数据
+hive> select * from student;
+（10） 退出 hive
+hive> quit;
+```
+
+在实际操作中，show databases;报错了，信息如下：
+
+FAILED: SemanticException org.apache.hadoop.hive.ql.metadata.HiveException: java.lang.RuntimeException: Unable to instantiate org.apache.hadoop.hive.ql.metadata.SessionHiveMetaStoreClient
+
+**原因为metastore服务未启动，直接在bin目录下执行`hive --service metastore & `，接着按Ctrl+C，再进入到hive中。**
+
+
+
